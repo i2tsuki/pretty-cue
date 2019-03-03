@@ -6,8 +6,6 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
 
-use log::Level;
-
 use cue_sys::PTI;
 use cue::cd::CD;
 use cue::rem::RemType;
