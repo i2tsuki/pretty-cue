@@ -2,6 +2,9 @@
 extern crate log;
 extern crate env_logger;
 
+extern crate clap;
+use clap::{Arg, App};
+
 use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
@@ -13,7 +16,20 @@ use cue::rem::RemType;
 fn main() -> std::io::Result<()> {
     env_logger::init();
 
-    let mut file = File::open("file.cue")?;
+    let matches = App::new("pretty-cue")
+        .version("0.0.1")
+        .author("i2tsuki <github.com/i2tsuki>")
+        .about("pretty-cue is pretty formatter for cuesheet")
+        .arg(
+            Arg::with_name("INPUT")
+                .help("Sets the input cue file to use")
+                .required(true)
+                .index(1),
+        )
+        .get_matches();
+
+    let input = matches.value_of("input").unwrap();
+    let mut file = File::open(input)?;
     let mut buf_reader = BufReader::new(file);
     let mut cue_sheet = String::new();
     buf_reader.read_to_string(&mut cue_sheet)?;
