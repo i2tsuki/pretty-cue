@@ -7,6 +7,7 @@ use clap::{Arg, App};
 
 use std::fs::File;
 use std::io::BufReader;
+use std::io::BufWriter;
 use std::io::prelude::*;
 
 use cue_sys::PTI;
@@ -22,43 +23,86 @@ fn main() -> std::io::Result<()> {
         .about("pretty-cue is pretty formatter for cuesheet")
         .arg(
             Arg::with_name("INPUT")
-                .help("Sets the input cue file to use")
+                .help("Sets the input cue file to read")
                 .required(true)
                 .index(1),
         )
+        .arg(
+            Arg::with_name("output")
+                .short("-o")
+                .long("--output")
+                .help("Sets the output cue file to write")
+                .multiple(false)
+                .required(false)
+                .takes_value(true),
+        )
         .get_matches();
 
-    let input = matches.value_of("input").unwrap();
-    let mut file = File::open(input)?;
-    let mut buf_reader = BufReader::new(file);
+    let input = matches.value_of("INPUT").unwrap();
+    let mut in_file = File::open(input)?;
+    let mut out_file = match matches.value_of("output") {
+        Some(output) => File::create(output)?,
+        None => File::create("/dev/stdout")?,
+    };
+    let mut buf_reader = BufReader::new(in_file);
+    let mut buf_writer = BufWriter::new(out_file);
     let mut cue_sheet = String::new();
     buf_reader.read_to_string(&mut cue_sheet)?;
 
     let cd = CD::parse(cue_sheet).unwrap();
-    println!(
-        "PERFORMER \"{}\"",
-        cd.get_cdtext().read(PTI::Performer).unwrap()
-    );
-    println!("TITLE \"{}\"", cd.get_cdtext().read(PTI::Title).unwrap());
+    buf_writer
+        .write(
+            format!(
+                "PERFORMER \"{}\"\n",
+                cd.get_cdtext().read(PTI::Performer).unwrap()
+            ).as_bytes(),
+        )
+        .unwrap();
+    buf_writer
+        .write(
+            format!("TITLE \"{}\"\n", cd.get_cdtext().read(PTI::Title).unwrap()).as_bytes(),
+        )
+        .unwrap();
 
-    println!(
-        "REM DATE \"{}\"",
-        cd.get_rem().read(RemType::Date as usize).unwrap()
-    );
-    println!("GENRE \"{}\"", cd.get_cdtext().read(PTI::Genre).unwrap());
-    println!("FILE \"{}\" WAVE", cd.tracks()[0].get_filename());
-
+    buf_writer
+        .write(
+            format!(
+                "REM DATE \"{}\"\n",
+                cd.get_rem().read(RemType::Date as usize).unwrap()
+            ).as_bytes(),
+        )
+        .unwrap();
+    buf_writer
+        .write(
+            format!("GENRE \"{}\"\n", cd.get_cdtext().read(PTI::Genre).unwrap()).as_bytes(),
+        )
+        .unwrap();
+    buf_writer
+        .write(
+            format!("FILE \"{}\" WAVE\n", cd.tracks()[0].get_filename()).as_bytes(),
+        )
+        .unwrap();
 
     for (index, track) in cd.tracks().iter().enumerate() {
-        println!("  TRACK {:>02} AUDIO", index + 1);
-        println!(
-            "    TITLE \"{}\"",
-            track.get_cdtext().read(PTI::Title).unwrap()
-        );
-        println!(
-            "    PERFORMER \"{}\"",
-            track.get_cdtext().read(PTI::Performer).unwrap()
-        );
+        buf_writer
+            .write(format!("  TRACK {:>02} AUDIO\n", index + 1).as_bytes())
+            .unwrap();
+        buf_writer
+            .write(
+                format!(
+                    "    TITLE \"{}\"\n",
+                    track.get_cdtext().read(PTI::Title).unwrap()
+                ).as_bytes(),
+            )
+            .unwrap();
+        buf_writer
+            .write(
+                format!(
+                    "    PERFORMER \"{}\"\n",
+                    track.get_cdtext().read(PTI::Performer).unwrap()
+                ).as_bytes(),
+            )
+            .unwrap();
 
         // ToDo: Use `time_frame_to_msf(long frame, int *m, int *s, int *f)` to convert frame to msf
         // Ref:https://github.com/lipnitsk/libcue/blob/cbbde79f64042bef87f5c8b7661845525a04c97e/time.c#L26
@@ -71,19 +115,28 @@ fn main() -> std::io::Result<()> {
         let index01_frame = (track.get_start() as u32 + track.get_index(1) as u32) % 75;
 
         if index != 0 {
-            println!(
-            "    INDEX 00 {0:>02}:{1:>02}:{2:>02}",
-            index00_min,
-            index00_sec,
-            index00_frame,
-            );
+            buf_writer
+                .write(
+                    format!(
+                "    INDEX 00 {0:>02}:{1:>02}:{2:>02}\n",
+                index00_min,
+                index00_sec,
+                index00_frame,
+            ).as_bytes(),
+                )
+                .unwrap();
         }
-        println!(
-            "    INDEX 01 {0:>02}:{1:>02}:{2:>02}",
+        buf_writer
+            .write(
+                format!(
+            "    INDEX 01 {0:>02}:{1:>02}:{2:>02}\n",
             index01_min,
             index01_sec,
             index01_frame,
-        );
+        ).as_bytes(),
+            )
+            .unwrap();
     }
+    buf_writer.flush().unwrap();
     Ok(())
 }
