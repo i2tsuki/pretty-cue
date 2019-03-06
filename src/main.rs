@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate log;
 extern crate env_logger;
 
@@ -6,8 +5,7 @@ extern crate clap;
 use clap::{Arg, App};
 
 use std::fs::File;
-use std::io::BufReader;
-use std::io::BufWriter;
+use std::io::{BufReader, BufWriter};
 use std::io::prelude::*;
 
 use cue_sys::PTI;
@@ -39,8 +37,8 @@ fn main() -> std::io::Result<()> {
         .get_matches();
 
     let input = matches.value_of("INPUT").unwrap();
-    let mut in_file = File::open(input)?;
-    let mut out_file: Box<Write> = match matches.value_of("output") {
+    let in_file = File::open(input)?;
+    let out_file: Box<Write> = match matches.value_of("output") {
         Some(output) => Box::new(File::create(output)?),
         None => Box::new(std::io::stdout()),
     };
