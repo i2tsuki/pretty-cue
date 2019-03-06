@@ -36,8 +36,7 @@ fn main() -> std::io::Result<()> {
         )
         .get_matches();
 
-    let input = matches.value_of("INPUT").unwrap();
-    let in_file = File::open(input)?;
+    let in_file = File::open(matches.value_of("INPUT").unwrap())?;
     let out_file: Box<Write> = match matches.value_of("output") {
         Some(output) => Box::new(File::create(output)?),
         None => Box::new(std::io::stdout()),
