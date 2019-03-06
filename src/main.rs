@@ -40,9 +40,9 @@ fn main() -> std::io::Result<()> {
 
     let input = matches.value_of("INPUT").unwrap();
     let mut in_file = File::open(input)?;
-    let mut out_file = match matches.value_of("output") {
-        Some(output) => File::create(output)?,
-        None => File::create("/dev/stdout")?,
+    let mut out_file: Box<Write> = match matches.value_of("output") {
+        Some(output) => Box::new(File::create(output)?),
+        None => Box::new(std::io::stdout()),
     };
     let mut buf_reader = BufReader::new(in_file);
     let mut buf_writer = BufWriter::new(out_file);
