@@ -4,18 +4,22 @@ extern crate env_logger;
 extern crate clap;
 use clap::{Arg, App};
 
+use std::fmt::{Display, Formatter};
+
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::io::prelude::*;
+
+use std::process::exit;
 
 use cue_sys::PTI;
 use cue::cd::CD;
 use cue::rem::RemType;
 
-fn main() -> std::io::Result<()> {
+fn main() {
     env_logger::init();
 
-    let matches = App::new("pretty-cue")
+    let app = App::new("pretty-cue")
         .version("0.0.1")
         .author("i2tsuki <github.com/i2tsuki>")
         .about("pretty-cue is pretty formatter for cuesheet")
@@ -34,8 +38,35 @@ fn main() -> std::io::Result<()> {
                 .required(false)
                 .takes_value(true),
         )
-        .get_matches();
 
+    match exec(app) {
+        Ok(()) => (),
+        Err(err) => {
+            eprintln!("{}", err);
+            exit(1);
+        }
+    }
+}
+
+#[derive(Debug)]
+enum CmdError {
+    File(std::io::Error),
+}
+
+impl From<std::io::Error> for CmdError {
+    fn from(err: std::io::Error) -> CmdError {
+        CmdError::File(err)
+    }
+}
+
+impl Display for CmdError {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "pretty-cue: command failed")
+    }
+}
+
+fn exec(app: clap::App) -> Result<(), CmdError> {
+    let matches = app.get_matches();
     let in_file = File::open(matches.value_of("INPUT").unwrap())?;
     let out_file: Box<Write> = match matches.value_of("output") {
         Some(output) => Box::new(File::create(output)?),
