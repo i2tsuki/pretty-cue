@@ -5,6 +5,7 @@ use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::io::prelude::*;
+use std::ffi::NulError;
 
 use cue_sys::PTI;
 use cue::cd::CD;
@@ -13,7 +14,8 @@ use cue::rem::RemType;
 #[derive(Debug)]
 pub enum CmdError {
     File(std::io::Error),
-    Error(String),
+    CueErr(NulError),
+    Err(String),
 }
 
 impl From<std::io::Error> for CmdError {
@@ -22,9 +24,15 @@ impl From<std::io::Error> for CmdError {
     }
 }
 
+impl From<NulError> for CmdError {
+    fn from(err: NulError) -> CmdError {
+        CmdError::CueErr(err)
+    }
+}
+
 impl From<String> for CmdError {
     fn from(err: String) -> CmdError {
-        CmdError::Error(err)
+        CmdError::Err(err)
     }
 }
 
@@ -47,7 +55,7 @@ pub fn exec(app: clap::App) -> Result<(), CmdError> {
         _ => {
             match matches.value_of("output") {
                 Some(_) => {
-                    Err(CmdError::Error(
+                    Err(CmdError::Err(
                         "`overwrite` option conflicts `output` option".to_string(),
                     ))?
                 }
@@ -60,18 +68,27 @@ pub fn exec(app: clap::App) -> Result<(), CmdError> {
     let mut cue_sheet = String::new();
     buf_reader.read_to_string(&mut cue_sheet)?;
 
-    let cd = CD::parse(cue_sheet).unwrap();
+    let cd = CD::parse(cue_sheet)?;
     buf_writer
         .write(
             format!(
                 "PERFORMER \"{}\"\n",
-                cd.get_cdtext().read(PTI::Performer).unwrap()
+                cd.get_cdtext().read(PTI::Performer).ok_or(
+                    "performer is not found"
+                        .to_string(),
+                )?
             ).as_bytes(),
         )
         .unwrap();
     buf_writer
         .write(
-            format!("TITLE \"{}\"\n", cd.get_cdtext().read(PTI::Title).unwrap()).as_bytes(),
+            format!(
+                "TITLE \"{}\"\n",
+                cd.get_cdtext().read(PTI::Title).ok_or(
+                    "title is not found"
+                        .to_string(),
+                )?
+            ).as_bytes(),
         )
         .unwrap();
 
@@ -79,13 +96,22 @@ pub fn exec(app: clap::App) -> Result<(), CmdError> {
         .write(
             format!(
                 "REM DATE \"{}\"\n",
-                cd.get_rem().read(RemType::Date as usize).unwrap()
+                cd.get_rem().read(RemType::Date as usize).ok_or(
+                    "date is not found"
+                        .to_string(),
+                )?
             ).as_bytes(),
         )
         .unwrap();
     buf_writer
         .write(
-            format!("GENRE \"{}\"\n", cd.get_cdtext().read(PTI::Genre).unwrap()).as_bytes(),
+            format!(
+                "GENRE \"{}\"\n",
+                cd.get_cdtext().read(PTI::Genre).ok_or(
+                    "genre is not found"
+                        .to_string(),
+                )?
+            ).as_bytes(),
         )
         .unwrap();
     buf_writer
@@ -102,7 +128,10 @@ pub fn exec(app: clap::App) -> Result<(), CmdError> {
             .write(
                 format!(
                     "    TITLE \"{}\"\n",
-                    track.get_cdtext().read(PTI::Title).unwrap()
+                    track.get_cdtext().read(PTI::Title).ok_or(
+                        "track title is not found"
+                            .to_string(),
+                    )?
                 ).as_bytes(),
             )
             .unwrap();
@@ -110,7 +139,10 @@ pub fn exec(app: clap::App) -> Result<(), CmdError> {
             .write(
                 format!(
                     "    PERFORMER \"{}\"\n",
-                    track.get_cdtext().read(PTI::Performer).unwrap()
+                    track.get_cdtext().read(PTI::Performer).ok_or(
+                        "track performer is not found"
+                            .to_string(),
+                    )?
                 ).as_bytes(),
             )
             .unwrap();
@@ -148,7 +180,7 @@ pub fn exec(app: clap::App) -> Result<(), CmdError> {
             )
             .unwrap();
     }
-    buf_writer.flush().unwrap();
+    buf_writer.flush()?;
 
     match matches.occurrences_of("overwrite") {
         0 => (),
