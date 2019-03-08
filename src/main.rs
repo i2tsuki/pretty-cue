@@ -29,6 +29,12 @@ fn main() {
                 .required(false)
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("overwrite")
+                .long("--overwrite")
+                .help("Overwrite cue file")
+                .required(false),
+        );
 
     match cmd::exec(app) {
         Ok(()) => (),

@@ -13,11 +13,18 @@ use cue::rem::RemType;
 #[derive(Debug)]
 pub enum CmdError {
     File(std::io::Error),
+    Error(String),
 }
 
 impl From<std::io::Error> for CmdError {
     fn from(err: std::io::Error) -> CmdError {
         CmdError::File(err)
+    }
+}
+
+impl From<String> for CmdError {
+    fn from(err: String) -> CmdError {
+        CmdError::Error(err)
     }
 }
 
@@ -30,9 +37,23 @@ impl Display for CmdError {
 pub fn exec(app: clap::App) -> Result<(), CmdError> {
     let matches = app.get_matches();
     let in_file = File::open(matches.value_of("INPUT").unwrap())?;
-    let out_file: Box<Write> = match matches.value_of("output") {
-        Some(output) => Box::new(File::create(output)?),
-        None => Box::new(std::io::stdout()),
+    let out_file: Box<Write> = match matches.occurrences_of("overwrite") {
+        0 => {
+            match matches.value_of("output") {
+                Some(output) => Box::new(File::create(output)?),
+                None => Box::new(std::io::stdout()),
+            }
+        }
+        _ => {
+            match matches.value_of("output") {
+                Some(_) => {
+                    Err(CmdError::Error(
+                        "`overwrite` option conflicts `output` option".to_string(),
+                    ))?
+                }
+                None => Box::new(File::create("overwrite.cue")?),
+            }
+        }
     };
     let mut buf_reader = BufReader::new(in_file);
     let mut buf_writer = BufWriter::new(out_file);
@@ -128,5 +149,11 @@ pub fn exec(app: clap::App) -> Result<(), CmdError> {
             .unwrap();
     }
     buf_writer.flush().unwrap();
+
+    match matches.occurrences_of("overwrite") {
+        0 => (),
+        _ => std::fs::rename("overwrite.cue", matches.value_of("INPUT").unwrap())?,
+    }
+
     Ok(())
 }
