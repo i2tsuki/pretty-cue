@@ -44,7 +44,9 @@ impl Display for CmdError {
 
 pub fn exec(app: clap::App) -> Result<(), CmdError> {
     let matches = app.get_matches();
-    let in_file = File::open(matches.value_of("INPUT").unwrap())?;
+    let in_file = File::open(matches.value_of("INPUT").ok_or(
+        "input is not given".to_string(),
+    )?)?;
     let out_file: Box<Write> = match matches.occurrences_of("overwrite") {
         0 => {
             match matches.value_of("output") {
@@ -166,7 +168,14 @@ pub fn exec(app: clap::App) -> Result<(), CmdError> {
 
     match matches.occurrences_of("overwrite") {
         0 => (),
-        _ => std::fs::rename("overwrite.cue", matches.value_of("INPUT").unwrap())?,
+        _ => {
+            std::fs::rename(
+                "overwrite.cue",
+                matches.value_of("INPUT").ok_or(
+                    "input is not given".to_string(),
+                )?,
+            )?
+        }
     }
 
     Ok(())
