@@ -162,7 +162,6 @@ pub fn exec(app: clap::App) -> Result<(), CmdError> {
             index01_frame,
         ).as_bytes(),
         )?;
-
     }
     buf_writer.flush()?;
 
