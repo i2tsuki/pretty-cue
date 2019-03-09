@@ -110,6 +110,7 @@ pub fn exec(app: clap::App) -> Result<(), CmdError> {
         ).as_bytes(),
     )?;
 
+    // Processing for album tracks
     for (index, track) in cd.tracks().iter().enumerate() {
         buf_writer.write(
             format!("  TRACK {:>02} AUDIO\n", index + 1)
@@ -137,7 +138,6 @@ pub fn exec(app: clap::App) -> Result<(), CmdError> {
         let index00_min = track.get_start() as u32 / 75 / 60;
         let index00_sec = track.get_start() as u32 / 75 % 60;
         let index00_frame = track.get_start() as u32 % 75;
-
         let index01_min = (track.get_start() as u32 + track.get_index(1) as u32) / 75 / 60;
         let index01_sec = (track.get_start() as u32 + track.get_index(1) as u32) / 75 % 60;
         let index01_frame = (track.get_start() as u32 + track.get_index(1) as u32) % 75;
